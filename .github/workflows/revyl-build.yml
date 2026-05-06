@@ -7,7 +7,7 @@ jobs:
   ios-sim:
     name: iOS Simulator Build
     runs-on: macos-14
-    timeout-minutes: 60
+    timeout-minutes: 90
     defaults:
       run:
         working-directory: .
@@ -18,8 +18,10 @@ jobs:
           node-version: '22'
           cache: 'yarn'
       - run: yarn install --frozen-lockfile
+      - name: Install Ruby gems
+        run: bundle install
       - name: Pod install
-        run: cd ios && pod install --repo-update
+        run: bundle exec pod install --project-directory=ios --repo-update
       - name: Build for iOS Simulator
         run: |
           xcodebuild \
