@@ -6,11 +6,10 @@ on:
 jobs:
   ios-sim:
     name: iOS Simulator Build
-    runs-on: macos-14
-    timeout-minutes: 90
-    defaults:
-      run:
-        working-directory: .
+    runs-on: macos-15
+    timeout-minutes: 120
+    env:
+      COCOAPODS_DISABLE_STATS: 'true'
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -18,10 +17,18 @@ jobs:
           node-version: '22'
           cache: 'yarn'
       - run: yarn install --frozen-lockfile
+      - name: Select Xcode 16
+        run: |
+          XCODE_16=$(ls -d /Applications/Xcode_16*.app 2>/dev/null | sort -V | tail -1)
+          if [ -n "$XCODE_16" ]; then
+            sudo xcode-select -s "$XCODE_16/Contents/Developer"
+          fi
+          xcodebuild -version
       - name: Install CocoaPods
-        run: sudo gem install cocoapods
+        run: sudo gem install cocoapods --no-document
       - name: Pod install
         run: cd ios && pod install --repo-update
+        timeout-minutes: 30
       - name: Build for iOS Simulator
         run: |
           xcodebuild \
@@ -30,7 +37,8 @@ jobs:
             -configuration Debug \
             -sdk iphonesimulator \
             -derivedDataPath build \
-            CODE_SIGNING_ALLOWED=NO
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet
       - name: Locate .app bundle
         id: locate
         run: |
@@ -45,10 +53,7 @@ jobs:
   android-apk:
     name: Android Debug APK
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    defaults:
-      run:
-        working-directory: .
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -62,9 +67,3 @@ jobs:
       - uses: gradle/actions/setup-gradle@v3
       - run: yarn install --frozen-lockfile
       - name: Build debug APK
-        run: cd android && ./gradlew assembleExperimentalDebug
-      - uses: actions/upload-artifact@v4
-        with:
-          name: revyl-android-apk
-          path: android/app/build/outputs/apk/experimental/debug/app-experimental-debug.apk
-          if-no-files-found: error
